@@ -107,6 +107,8 @@ rgbeLoader.load('./assets/small_empty_room_3_4k.hdr', (texture) => {
 
 
   var model;
+  // Create a central sphere at (0,0,0)
+  const centralSphere = physics.add.sphere({ x: 0, y: 0, z: 0, radius: 0.01, mass: 10 });
 
   const loader = new GLTFLoader();
   loader.load('./assets/shapes.glb', (gltf) => {
@@ -124,6 +126,12 @@ rgbeLoader.load('./assets/small_empty_room_3_4k.hdr', (texture) => {
           collisionFlags: 0,
         });
 
+        physics.add.constraints.spring(child.body, centralSphere.body, {
+          stiffness: 500,
+          damping: 2
+      });
+
+
 
 
         
@@ -136,11 +144,10 @@ child.body.collisionResponse = true;
          
       }
     }); 
-    physics.add.constraints.spring(model.children[0].body, model.children[1].body, {
-      damping: 0.1
-    })
+    // physics.add.constraints.spring(model.children[0].body, model.children[1].body, {
+    //   damping: 0.1
+    // })
 
-    console.log(model)
     scene.add(model); 
   }); 
 
