@@ -276,7 +276,18 @@ function applyAttractionForce(obj, target) {
 }
 
 
+window.addEventListener('resize', () => {
+  const width = window.innerWidth;
+  const height = window.innerHeight;
 
+  // Update camera aspect ratio
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+
+  // Update renderer size
+  renderer.setSize(width, height);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Limits pixel ratio for performance
+});
 
 
 
