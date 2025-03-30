@@ -3,6 +3,8 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
 
+import {Tween,Easing} from '../tween/tween.esm.js'
+
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 
 import { RectAreaLightHelper } from 'three/examples/jsm/helpers/RectAreaLightHelper.js';
@@ -20,8 +22,7 @@ import { CSG } from '@enable3d/three-graphics/dist/csg'
 import { TextTexture, TextSprite } from '@enable3d/three-graphics/dist/flat'
 import { VERSION } from 'enable3d'
 
-console.log('Three.js version r' + THREE.REVISION)
-console.log('Enable3d version ' + VERSION)
+
 
 const MainScene = () => {
   // sizes
@@ -45,6 +46,9 @@ const MainScene = () => {
   const camera2d = new THREE.OrthographicCamera(0, width, height, 0, 1, 1000)
   camera2d.position.setZ(10)
 
+  //tween  
+  var tween_scale
+
   // renderer
   const renderer = new THREE.WebGLRenderer({antialias: true})
   renderer.setSize(width, height)
@@ -58,6 +62,7 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Soft shadows
   const mat = new THREE.MeshNormalMaterial()
 
 
+  /*
 // Load HDR Environment Map
 const rgbeLoader = new RGBELoader();
 rgbeLoader.load('./assets/small_empty_room_3_4k.hdr', (texture) => {
@@ -65,6 +70,7 @@ rgbeLoader.load('./assets/small_empty_room_3_4k.hdr', (texture) => {
   scene.environment = texture; // Set environment for reflections
   
 });
+*/
 
 
   // add 2d text
@@ -107,42 +113,76 @@ rgbeLoader.load('./assets/small_empty_room_3_4k.hdr', (texture) => {
 
 
   var model;
+  var cubeBody
   // Create a central sphere at (0,0,0)
-  const centralSphere = physics.add.sphere({ x: 0, y: 0, z: 0, radius: 0.01, mass: 10 });
+  const centralSphere = physics.add.sphere({ x: -0.75, y: 0, z: 0, radius: 0.05, mass: 0 });
 
   const loader = new GLTFLoader();
   loader.load('./assets/shapes.glb', (gltf) => {
     model = gltf.scene;
+
+
   
     // Enable shadows on all objects in the model
     model.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
         child.castShadow = true;  // Object will cast shadows
         child.receiveShadow = true; // Object will receive shadows
+
+        if(child.name == "cube1"){  
+
+          console.log(child);
+
+          cubeBody = physics.add.existing(child, {
+            shape: 'convex',
+            mass: 100,
+            collisionFlags: 0,
+          });
   
+          physics.add.constraints.spring(child.body, centralSphere.body, {
+            stiffness: 500,
+            damping: 200,
+            center: true
+        });
+  
+  
+                
+        // Enable collision response
+        child.body.collisionResponse = true;
+
+        }
+        else{
+        
+        
         physics.add.existing(child, {
           shape: 'convex',
-          mass: 1,
+          mass: 100,
           collisionFlags: 0,
         });
 
         physics.add.constraints.spring(child.body, centralSphere.body, {
           stiffness: 500,
-          damping: 2
+          damping: 200,
+          center: true
       });
 
 
+              
+      // Enable collision response
+      child.body.collisionResponse = true;
+    }
 
+      
 
         
-// Enable collision response
-child.body.collisionResponse = true;
-
-
         //child.body.applyForce((Math.random() * 0.001 - 0.0005), (Math.random() * 0.001 - 0.0005), (Math.random() * 0.001 - 0.0005));  
         
          
       }
+
+
+
+      
     }); 
     // physics.add.constraints.spring(model.children[0].body, model.children[1].body, {
     //   damping: 0.1
@@ -151,74 +191,84 @@ child.body.collisionResponse = true;
     scene.add(model); 
   }); 
 
+  setTimeout(() => {
+    physics.destroy(cubeBody);
+    console.log(cubeBody)
+  }
+  , 2000);
 
+  
 
+  //tween to scale gradually
+  function popInObject(object) {
 
-  //
+    // Start scale at zero
+    //object.scale.set(0, 0, 0);
 
-  //var magnet1 = physics.add.sphere({ x: 0, y: 1, z: 0, radius: 0.5, mass: 1});
-  //var magnet2 = physics.add.sphere({ x: 0, y: -0.2, z: 0, radius: 0.5, mass: 1 });
-  //var magnet3 = physics.add.sphere({ x: -0.2, y: 0.3, z: 0, radius: 0.5, mass: 0.001 });
-  //var magnet4 = physics.add.sphere({ x: 0.3, y: -0.2, z: 0, radius: 0.5, mass: 0.001 });
-  //var magnet5 = physics.add.sphere({ x: -0.3, y: -0.4, z: 0, radius: 0.5, mass: 0.001 });
-  //var magnet6 = physics.add.sphere({ x: 0.1, y: -0.5, z: 0, radius: 0.5, mass: 0.001 });
+    var from = {
+      x: object.scale.x,
+      y: object.scale.y,
+      z: object.scale.z
+    };
 
-//   const spring = physics.add.constraints.spring(magnet1.body, magnet2.body, {
-//     stiffness: 1,   // How strong the spring force is
-//     damping: 2       // Reduces oscillations (higher values = less bouncing)
-// });
+    var to = {
+      x: 30,
+      y: 30,
+      z: 30,
+    };
 
-  // Function to apply noisy movement
-  function applyNoisyMovement(object) {
-    const time = Date.now() * 0.001;  // Time for noise variation
-
-    // Adding tiny random noise to position
-    object.position.x += Math.sin(time * 0.5) * 0.02; // Small sine wave for horizontal movement
-    object.position.y += Math.cos(time * 0.7) * 0.02; // Small sine wave for vertical movement
-    object.position.z += Math.random() * 0.01 - 0.005; // Tiny random noise for depth movement
-
-    // Optional: Apply random rotation noise
-    object.rotation.x += (Math.random() * 0.001 - 0.0005);
-    object.rotation.y += (Math.random() * 0.001 - 0.0005);
-    object.rotation.z += (Math.random() * 0.001 - 0.0005);
+    // Define target scale and duration
+    tween_scale = new Tween(from,false)
+        .to(to, 1000) // Scale up in 1 second
+        .easing(Easing.Quadratic.InOut) // Elastic bounce effect
+        .onUpdate(function () {
+          updatePhysicsScale(object, from.x);    
+          //object.scale.set(from.x,from.y,from.z); 
+  
+          //object.body.needsUpdate = true;  
+        })
+        .start();
   }
 
 
-const spring = x => {
-  let box1 = physics.add.box({ y: 2, x: x, z: 0, mass: 2 }, {  })
-  let box2 = physics.add.box({ y: 4, x: x, z: 0, mass: 2 }, {  })
 
-  applyMagneticForce(box1, box2);
+// Function to update physics body while scaling
+function updatePhysicsScale(object, newScale) {
+  if (!object.body) return;
 
-  const linearLowerLimit = { x: -10000, y: -10000, z: -10000 }
-  const linearUpperLimit = { x: 10000, y: 10000, z: 10000 }
-  physics.add.constraints.spring(box1.body, box2.body, {
-    damping: 0.1,
-    linearLowerLimit,
-    linearUpperLimit
-  })
 
+  // Destroy old physics body
+  physics.destroy(object.body);
+  console.log(object.body);
+  object.body.needsUpdate = true;
+
+  // Update Three.js visual scale
+  object.scale.set(newScale, newScale, newScale);
+
+  // Recreate the physics body with the new scale
+  //physics.add.existing(object, { shape: 'convex', mass: 1 });
 
 }
 
-// Create an Area Light
-const rectLight = new THREE.RectAreaLight("#ffffff", 5, 3, 2); // (color, intensity, width, height)
-rectLight.position.set(2, 2, 0);
-rectLight.lookAt(0, 0, 0);
-//scene.add(rectLight);
+const ambient = new THREE.HemisphereLight( 0xffffff, 0x8d8d8d, 0.05 );
+scene.add( ambient );
 
-// Add RectAreaLight Helper
-const rectLightHelper = new RectAreaLightHelper(rectLight);
-//scene.add(rectLightHelper);
+
 
 //// ADD SHADOW-CASTING SPOTLIGHT (Fake Shadow for Area Light)
 // Create SpotLight
-const spotLight = new THREE.SpotLight(0xffffff, 100);
+const spotLight = new THREE.SpotLight(0xffffff, 85);
 spotLight.position.set(3, 3, 3);
 spotLight.lookAt(0, 0, 0);
 spotLight.angle = Math.PI / 6; // Spotlight cone angle
-spotLight.penumbra = 0.3; // Soft edge
+spotLight.penumbra =1; // Soft edge
 spotLight.castShadow = true;
+
+spotLight.shadow.mapSize.width = 2048;
+spotLight.shadow.mapSize.height = 2048;
+spotLight.shadow.camera.near = 1;
+spotLight.shadow.camera.far = 10;
+spotLight.shadow.focus = 1;
 scene.add(spotLight);
 
 // Create SpotLight Helper
@@ -323,11 +373,11 @@ composer.addPass(effectPass);
   const clock = new THREE.Clock()
 
   // loop
-  const animate = () => {
+  const animate = (time) => {
 
-    //magnet1.body.needUpdate = true // this is how you update kinematic bodies
-    if(model){
-    //applyNoisyMovement(model);
+    if(tween_scale){
+        
+      tween_scale.update(time)
     }
 
     physics.update(clock.getDelta() * 1000)
