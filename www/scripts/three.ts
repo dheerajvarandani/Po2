@@ -350,6 +350,28 @@ window.addEventListener('resize', () => {
   window.addEventListener('wheel', onScroll);
 
 
+
+  //touch
+  let lastTouchY = 0;
+
+function onTouchMove(event) {
+    if (event.touches.length > 0) {
+        let touchY = event.touches[0].clientY;
+        let deltaY = lastTouchY - touchY; // Scroll direction
+        lastTouchY = touchY;
+
+        onScroll({ deltaY }); // Reuse the scroll function
+    }
+}
+
+// Add event listener for touch devices
+window.addEventListener('touchstart', (event) => {
+  controls.dispose()
+    if (event.touches.length > 0) lastTouchY = event.touches[0].clientY;
+});
+window.addEventListener('touchmove', onTouchMove);
+
+
   // clock
   const clock = new THREE.Clock()
 
