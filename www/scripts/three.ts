@@ -3,7 +3,7 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
 
-import {Tween,Easing} from '../tween/tween.esm.js'
+import {Group,Tween,Easing} from '../tween/tween.esm.js'
 
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 
@@ -14,6 +14,7 @@ import { EffectComposer, RenderPass, EffectPass, SSAOEffect } from 'postprocessi
 
 // physics
 import { AmmoPhysics, ExtendedMesh, PhysicsLoader } from '@enable3d/ammo-physics'
+import Ammo from "../ammo/ammo.wasm.js";
 
 // CSG
 import { CSG } from '@enable3d/three-graphics/dist/csg'
@@ -37,6 +38,7 @@ const MainScene = () => {
   const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 1000)
   camera.position.set(2,0,-0.2)
   camera.lookAt(0, 0, 0)
+ 
 
   // you can access Ammo directly if you want
   // new Ammo.btVector3(1, 2, 3).y()
@@ -48,6 +50,7 @@ const MainScene = () => {
 
   //tween  
   var tween_scale
+  var group = new Group();
 
   // renderer
   const renderer = new THREE.WebGLRenderer({antialias: true})
@@ -88,8 +91,10 @@ rgbeLoader.load('./assets/small_empty_room_3_4k.hdr', (texture) => {
   // orbit controls
   var controls = new OrbitControls(camera, renderer.domElement)
   controls.enableDamping = true
+  controls.enableZoom = false
+  controls.enablePan = false
   //controls.dampingFactor = 0.001
-
+  controls.target.set(-1, 0, 0)
 
 
   // physics
@@ -113,9 +118,13 @@ rgbeLoader.load('./assets/small_empty_room_3_4k.hdr', (texture) => {
 
 
   var model;
+  var rotateCylinder = false;
   var cubeBody
   // Create a central sphere at (0,0,0)
   const centralSphere = physics.add.sphere({ x: -0.75, y: 0, z: 0, radius: 0.05, mass: 0 });
+  centralSphere.visible = false;
+
+
 
   const loader = new GLTFLoader();
   loader.load('./assets/shapes.glb', (gltf) => {
@@ -129,75 +138,71 @@ rgbeLoader.load('./assets/small_empty_room_3_4k.hdr', (texture) => {
         child.castShadow = true;  // Object will cast shadows
         child.receiveShadow = true; // Object will receive shadows
 
-        if(child.name == "cube1"){  
-
-          console.log(child);
-
-          cubeBody = physics.add.existing(child, {
-            shape: 'convex',
-            mass: 100,
-            collisionFlags: 0,
-          });
-  
-          physics.add.constraints.spring(child.body, centralSphere.body, {
-            stiffness: 500,
-            damping: 200,
-            center: true
-        });
-  
-  
-                
-        // Enable collision response
-        child.body.collisionResponse = true;
-
-        }
-        else{
-        
-        
-        physics.add.existing(child, {
-          shape: 'convex',
-          mass: 100,
-          collisionFlags: 0,
-        });
-
-        physics.add.constraints.spring(child.body, centralSphere.body, {
-          stiffness: 500,
-          damping: 200,
-          center: true
-      });
-
-
-              
-      // Enable collision response
-      child.body.collisionResponse = true;
-    }
-
-      
-
-        
-        //child.body.applyForce((Math.random() * 0.001 - 0.0005), (Math.random() * 0.001 - 0.0005), (Math.random() * 0.001 - 0.0005));  
-        
-         
+        child.scale.set(0, 0, 0);
       }
-
-
 
       
     }); 
-    // physics.add.constraints.spring(model.children[0].body, model.children[1].body, {
-    //   damping: 0.1
-    // })
+
+
 
     scene.add(model); 
   }); 
 
+
+
+  function popInRandomChildren(model) {
+    const children = model.children;
+    const totalChildren = children.length;
+    const chosenIndices = new Set();
+
+    // Ensure we select 15 unique children (or all if there are fewer than 15)
+    while (chosenIndices.size < Math.min(15, totalChildren)) {
+        chosenIndices.add(Math.floor(Math.random() * totalChildren));
+    }
+
+    // Iterate over selected children and trigger popInObject at a random time
+    chosenIndices.forEach((childIndex: number) => {
+      const delay = Math.random() * 2000; // Random delay between 0 and 4 seconds
+      setTimeout(() => {
+          popInObject(children[childIndex]);  // `childIndex` is used correctly
+      }, delay);
+  });
+}
+
   setTimeout(() => {
-    physics.destroy(cubeBody);
-    console.log(cubeBody)
+
+popInRandomChildren(model);
+
   }
-  , 2000);
+  , 500);
 
   
+
+  function addPhysicsToModel(child){
+  physics.add.existing(child, {
+    shape: 'convex',
+    mass: 100,
+    collisionFlags: 0,
+  });
+
+  physics.add.constraints.spring(child.body, centralSphere.body, {
+    stiffness: 5,
+    damping: 200,
+    center: true
+});
+
+
+        
+// Enable collision response
+child.body.collisionResponse = true;
+
+
+   
+}
+
+
+
 
   //tween to scale gradually
   function popInObject(object) {
@@ -212,43 +217,46 @@ rgbeLoader.load('./assets/small_empty_room_3_4k.hdr', (texture) => {
     };
 
     var to = {
-      x: 30,
-      y: 30,
-      z: 30,
+      x: 1.2,
+      y: 1.2,
+      z: 1.2,
     };
 
     // Define target scale and duration
     tween_scale = new Tween(from,false)
-        .to(to, 1000) // Scale up in 1 second
+        .to(to, 100) // Scale up in 1 second
         .easing(Easing.Quadratic.InOut) // Elastic bounce effect
         .onUpdate(function () {
-          updatePhysicsScale(object, from.x);    
-          //object.scale.set(from.x,from.y,from.z); 
+            
+
+          object.scale.set(from.x,from.y,from.z); 
+          //updatePhysicsScale(object, from.x);
+          
   
           //object.body.needsUpdate = true;  
         })
+        .onComplete(function () {
+
+
+          //updatePhysicsScale(object, 1.5);
+
+          addPhysicsToModel(object);
+        
+
+          //object.scale.set(to.x, to.y, to.z);
+          //object.body.needsUpdate = true;
+        })
         .start();
+
+        group.add(tween_scale)
   }
 
 
 
-// Function to update physics body while scaling
-function updatePhysicsScale(object, newScale) {
-  if (!object.body) return;
 
 
-  // Destroy old physics body
-  physics.destroy(object.body);
-  console.log(object.body);
-  object.body.needsUpdate = true;
 
-  // Update Three.js visual scale
-  object.scale.set(newScale, newScale, newScale);
 
-  // Recreate the physics body with the new scale
-  //physics.add.existing(object, { shape: 'convex', mass: 1 });
-
-}
 
 const ambient = new THREE.HemisphereLight( 0xffffff, 0x8d8d8d, 0.05 );
 scene.add( ambient );
@@ -277,60 +285,11 @@ const spotLightHelper = new THREE.SpotLightHelper(spotLight);
 
 //
 
-  //applyMagneticForce(magnet1, magnet2);
 
-  // Add a force to the magnets
-  function applyMagneticForce(obj1, obj2) {
-    let direction = new THREE.Vector3().subVectors(obj2.position, obj1.position);
-    let distance = direction.length();
-    let minDistance = 0.1; // Prevents excessive force when very close
-
-    if (distance > minDistance) {
-        direction.normalize();
-
-        // Simulate inverse square law for magnetic attraction
-        let forceStrength = 50 / (distance * distance); // Adjust this for strength
-        let force = direction.multiplyScalar(forceStrength);
-
-        obj1.body.applyForce(force.x, force.y, force.z);
-        obj2.body.applyForce(-force.x, -force.y, -force.z);
-    }
-}
 
 //
 
 
-var attractionPoint = new THREE.Vector3(0.1, 0.4, 0);
-
-
-// applyAttractionForce(magnet1, attractionPoint);
-// applyAttractionForce(magnet2, attractionPoint);
-// applyAttractionForce(magnet3, attractionPoint);
-// applyAttractionForce(magnet4, attractionPoint);
-// applyAttractionForce(magnet5, attractionPoint);
-// applyAttractionForce(magnet6, attractionPoint);
-
-
-function applyAttractionForce(obj, target) {
-  let direction = new THREE.Vector3().subVectors(target, obj.position);
-  let distance = direction.length();
-  let minDistance = 1.0;
-
-  if (distance > minDistance) {
-      direction.normalize();
-
-      // ✅ Attraction Force Formula (Inverse Square Law)
-      let forceStrength = 1000 / (distance * distance);
-      let force = direction.multiplyScalar(forceStrength);
-
-      obj.body.applyForce(-force.x, force.y, force.z);
-
-
-      
-  }
-
-  
-}
 
 
 window.addEventListener('resize', () => {
@@ -348,26 +307,48 @@ window.addEventListener('resize', () => {
 
 
 
-  // post processing
-/*
 
-// Post-Processing Setup
-const composer = new EffectComposer(renderer);
-composer.addPass(new RenderPass(scene, camera));
 
-// SSAO Effect
-const ssaoEffect = new SSAOEffect(camera, renderer, {
-  samples: 32, // Higher is better but expensive
-  radius: 0.5, // Radius of occlusion
-  intensity: 1.5, // AO strength
-  bias: 0.025 // Reduces artifacts
-});
 
-const effectPass = new EffectPass(camera, ssaoEffect);
-effectPass.renderToScreen = true;
-composer.addPass(effectPass);
-*/
-  //
+  let scrollFactor = 0; // Tracks total scroll amount
+
+  function onScroll(event) {
+
+
+    if(scrollFactor >= 0){
+      scrollFactor += event.deltaY * 0.001; // Adjust sensitivity
+  
+      model.children.forEach(object => {
+          if (object.body) {
+              physics.destroy(object); // Remove physics
+          }
+          
+          if(object != model.children[7]){
+          let newScale = Math.max(0, 1 - scrollFactor); // Prevent negative scale
+          object.scale.set(newScale, newScale, newScale);
+          }
+          model.children[7].scale.set(1,1,1);
+          model.children[7].material.color = new THREE.Color().setRGB( 1-scrollFactor, 1-scrollFactor, 1 );
+      });
+
+      if(scrollFactor > 0.2){
+        rotateCylinder = true;
+      }
+      else{
+        rotateCylinder = false;
+      }
+
+
+    }
+    else{
+      scrollFactor = 0;
+      rotateCylinder = false;
+    }
+  }
+  
+  // Listen for scroll events
+  window.addEventListener('wheel', onScroll);
+
 
   // clock
   const clock = new THREE.Clock()
@@ -376,9 +357,14 @@ composer.addPass(effectPass);
   const animate = (time) => {
 
     if(tween_scale){
-        
-      tween_scale.update(time)
+        group.update(time)
+      //tween_scale.update(time)
     }
+
+    if(rotateCylinder){
+      model.children[7].rotation.y += 0.01;
+    }
+
 
     physics.update(clock.getDelta() * 1000)
     //physics.updateDebugger()
