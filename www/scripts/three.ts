@@ -49,7 +49,7 @@ const MainScene = () => {
   camera2d.position.setZ(10)
 
   //tween  
-  var tween_scale
+  var tween_scale, tween_pos
   var group = new Group();
 
   // renderer
@@ -163,11 +163,13 @@ rgbeLoader.load('./assets/small_empty_room_3_4k.hdr', (texture) => {
 
     // Iterate over selected children and trigger popInObject at a random time
     chosenIndices.forEach((childIndex: number) => {
-      const delay = Math.random() * 2000; // Random delay between 0 and 4 seconds
+      const delay = Math.random() * 5000; // Random delay between 0 and 4 seconds
       setTimeout(() => {
           popInObject(children[childIndex]);  // `childIndex` is used correctly
       }, delay);
   });
+
+  
 }
 
   setTimeout(() => {
@@ -186,16 +188,23 @@ popInRandomChildren(model);
     collisionFlags: 0,
   });
 
+  //child.body.setFriction(1);
+  //child.body.setRestitution(1)
+  //child.body.setAngularFactor(0);
+  //child.body.setBounciness(0);
+
   physics.add.constraints.spring(child.body, centralSphere.body, {
-    stiffness: 5,
-    damping: 200,
-    center: true
+    //stiffness: 5,
+    //damping: 200000,
+    //center: true
 });
 
 
         
 // Enable collision response
 child.body.collisionResponse = true;
+
+child.body.setDamping(0.95, 0.95);
 
 
    
@@ -230,25 +239,38 @@ child.body.collisionResponse = true;
             
 
           object.scale.set(from.x,from.y,from.z); 
-          //updatePhysicsScale(object, from.x);
-          
-  
-          //object.body.needsUpdate = true;  
+
         })
         .onComplete(function () {
 
-
-          //updatePhysicsScale(object, 1.5);
-
           addPhysicsToModel(object);
-        
 
-          //object.scale.set(to.x, to.y, to.z);
-          //object.body.needsUpdate = true;
+        })
+        .start();
+
+
+    var from_pos = {x:0,y:0,z:0};
+    var to_pos = {x: object.position.x, y: object.position.y, z: object.position.z};
+
+    // Define target scale and duration
+    tween_pos = new Tween(from_pos,false)
+        .to(to_pos, 300) // Scale up in 1 second
+        .easing(Easing.Quadratic.InOut) // Elastic bounce effect
+        .onUpdate(function () {
+            
+
+          object.position.set(from_pos.x,from_pos.y,from_pos.z); 
+
+        })
+        .onComplete(function () {
+
+          //addPhysicsToModel(object);
+
         })
         .start();
 
         group.add(tween_scale)
+        group.add(tween_pos)
   }
 
 
@@ -319,6 +341,8 @@ window.addEventListener('resize', () => {
       scrollFactor += event.deltaY * 0.001; // Adjust sensitivity
   
       model.children.forEach(object => {
+
+        console.log(object.body)
           if (object.body) {
               physics.destroy(object); // Remove physics
           }
