@@ -139,6 +139,9 @@ rgbeLoader.load('./assets/small_empty_room_3_4k.hdr', (texture) => {
         child.receiveShadow = true; // Object will receive shadows
 
         child.scale.set(0, 0, 0);
+
+        //child.material.normalScale.set(0.1, 0.1);
+        
       }
 
       
@@ -157,7 +160,7 @@ rgbeLoader.load('./assets/small_empty_room_3_4k.hdr', (texture) => {
     const chosenIndices = new Set();
 
     // Ensure we select 15 unique children (or all if there are fewer than 15)
-    while (chosenIndices.size < Math.min(15, totalChildren)) {
+    while (chosenIndices.size < Math.min(20, totalChildren)) {
         chosenIndices.add(Math.floor(Math.random() * totalChildren));
     }
 
@@ -177,7 +180,7 @@ rgbeLoader.load('./assets/small_empty_room_3_4k.hdr', (texture) => {
 popInRandomChildren(model);
 
   }
-  , 500);
+  , 1500);
 
   
 
@@ -287,10 +290,10 @@ scene.add( ambient );
 
 //// ADD SHADOW-CASTING SPOTLIGHT (Fake Shadow for Area Light)
 // Create SpotLight
-const spotLight = new THREE.SpotLight(0xffffff, 85);
+const spotLight = new THREE.SpotLight(0xffffff, 25);
 spotLight.position.set(3, 3, 3);
 spotLight.lookAt(0, 0, 0);
-spotLight.angle = Math.PI / 6; // Spotlight cone angle
+spotLight.angle = Math.PI / 8; // Spotlight cone angle
 spotLight.penumbra =1; // Soft edge
 spotLight.castShadow = true;
 
@@ -348,7 +351,7 @@ window.addEventListener('resize', () => {
           }
           
           if(object != model.children[7]){
-          let newScale = Math.max(0, 1 - scrollFactor); // Prevent negative scale
+          let newScale = Math.max(0, 1 - scrollFactor * 10); // Prevent negative scale
           object.scale.set(newScale, newScale, newScale);
           }
           model.children[7].scale.set(1,1,1);
@@ -415,6 +418,14 @@ window.addEventListener('touchmove', onTouchMove);
     physics.update(clock.getDelta() * 1000)
     //physics.updateDebugger()
 
+    
+    spotLight.position.x = camera.position.x
+    spotLight.position.y = camera.position.y
+    spotLight.position.z = camera.position.z
+    
+    
+    //spotLight.target.position.copy(camera.getWorldDirection(new THREE.Vector3())); // Point the light in the camera's direction
+
     // you have to clear and call render twice because there are 2 scenes
     // one 3d scene and one 2d scene
     renderer.clear()
@@ -424,6 +435,7 @@ window.addEventListener('touchmove', onTouchMove);
     //composer.render() 
 
     controls.update(clock.getDelta() * 1000)
+
 
     requestAnimationFrame(animate)
   }
