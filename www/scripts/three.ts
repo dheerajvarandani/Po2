@@ -12,6 +12,11 @@ import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLigh
 import { EffectComposer, RenderPass, EffectPass, SSAOEffect } from 'postprocessing';
 
 
+// Post-processing
+import { SSAOPass }        from 'three/examples/jsm/postprocessing/SSAOPass';
+import { BokehPass }       from 'three/examples/jsm/postprocessing/BokehPass';
+
+
 // physics
 import { AmmoPhysics, ExtendedMesh, PhysicsLoader } from '@enable3d/ammo-physics'
 import Ammo from "../ammo/ammo.wasm.js";
@@ -36,8 +41,8 @@ const MainScene = () => {
 
   // camera
   const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 1000)
-  camera.position.set(2,0,-0.2)
-  camera.lookAt(0, 0, 0)
+  //camera.position.set(2,0,-0.2)
+  //camera.lookAt(0, 0, 0)
  
 
   // you can access Ammo directly if you want
@@ -91,10 +96,12 @@ rgbeLoader.load('./assets/small_empty_room_3_4k.hdr', (texture) => {
   // orbit controls
   var controls = new OrbitControls(camera, renderer.domElement)
   controls.enableDamping = true
+  
   controls.enableZoom = false
   controls.enablePan = false
   //controls.dampingFactor = 0.001
   controls.target.set(-1, 0, 0)
+  
 
 
   // physics
@@ -282,38 +289,54 @@ child.body.setDamping(0.95, 0.95);
 
 
 
-
+/*
 const ambient = new THREE.HemisphereLight( 0xffffff, 0x8d8d8d, 0.05 );
 scene.add( ambient );
 
 
+*/
 
-//// ADD SHADOW-CASTING SPOTLIGHT (Fake Shadow for Area Light)
-// Create SpotLight
-const spotLight = new THREE.SpotLight(0xffffff, 25);
-spotLight.position.set(3, 3, 3);
-spotLight.lookAt(0, 0, 0);
-spotLight.angle = Math.PI / 8; // Spotlight cone angle
-spotLight.penumbra =1; // Soft edge
-spotLight.castShadow = true;
+// --- camera ---
 
-spotLight.shadow.mapSize.width = 2048;
-spotLight.shadow.mapSize.height = 2048;
-spotLight.shadow.camera.near = 1;
-spotLight.shadow.camera.far = 10;
-spotLight.shadow.focus = 1;
-scene.add(spotLight);
 
-// Create SpotLight Helper
-const spotLightHelper = new THREE.SpotLightHelper(spotLight);
-//scene.add(spotLightHelper);
+// --- directional light that lives in camera space (top-right) ---
+const dirLight = new THREE.DirectionalLight(0xffffff, 3.5);
+dirLight.position.set(1,1,1);      // ❶ X = right, Y = up, Z = slightly in front
+                                      //     tweak values to taste (e.g. 2,2,1 for a steeper angle)
+
+dirLight.castShadow = true; // default false
+
+//Set up shadow properties for the light
+dirLight.shadow.mapSize.width = 512; // default
+dirLight.shadow.mapSize.height = 512; // default
+dirLight.shadow.camera.near = 0.5; // default
+dirLight.shadow.camera.far = 500; // default
+
+// --- target straight ahead of the camera ---
+const lightTarget = new THREE.Object3D();
+lightTarget.position.set(0,0,0);  // camera-space –Z is “center of view”
+
+dirLight.target = lightTarget;
+
+// --- parent both to the camera so they follow its motion & rotation ---
+camera.add(dirLight);
+camera.add(lightTarget);
+
+// --- add the camera (with its children) to the scene ---
+//  scene.add(camera);
+
+const helper = new THREE.DirectionalLightHelper( dirLight, 0.1 );
+//scene.add( helper );
+
+camera.position.set(2,0,-0.2)
+
+scene.add(camera)
 
 //
 
-
-
-//
-
+// lighting
+//scene.add(new THREE.DirectionalLight(0xffffff,5))
+scene.add(new THREE.AmbientLight(0x262626)) // soft white light;
 
 
 
@@ -374,7 +397,7 @@ window.addEventListener('resize', () => {
   }
   
   // Listen for scroll events
-  window.addEventListener('wheel', onScroll);
+  //window.addEventListener('wheel', onScroll);
 
 
 
@@ -390,6 +413,13 @@ function onTouchMove(event) {
         onScroll({ deltaY }); // Reuse the scroll function
     }
 }
+
+
+// --- composer scaffold ---
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));   // ① normal scene render
+
+
 
 // Add event listener for touch devices
 window.addEventListener('touchstart', (event) => {
@@ -418,10 +448,11 @@ window.addEventListener('touchmove', onTouchMove);
     physics.update(clock.getDelta() * 1000)
     //physics.updateDebugger()
 
-    
+    /*    
     spotLight.position.x = camera.position.x
     spotLight.position.y = camera.position.y
     spotLight.position.z = camera.position.z
+    */
     
     
     //spotLight.target.position.copy(camera.getWorldDirection(new THREE.Vector3())); // Point the light in the camera's direction
@@ -432,7 +463,8 @@ window.addEventListener('touchmove', onTouchMove);
     renderer.render(scene, camera)
     renderer.clearDepth()
     renderer.render(scene2d, camera2d)
-    //composer.render() 
+    composer.render() 
+
 
     controls.update(clock.getDelta() * 1000)
 
